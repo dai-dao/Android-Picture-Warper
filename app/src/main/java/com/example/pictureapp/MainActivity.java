@@ -69,39 +69,53 @@ public class MainActivity extends AppCompatActivity {
 
         takePictureButton = (Button) findViewById(R.id.take_picture_button);
         imageView = (ImageView) findViewById(R.id.imageView);
-        transformTask = new TransformTask(imageView, this);
+        transformTask = new TransformTask(imageView, MainActivity.this);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             takePictureButton.setEnabled(false);
             ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE }, 0);
         }
 
-        imageView.setOnTouchListener(new OnSwipeTouchListener(this) {
+
+        imageView.setOnTouchListener(new View.OnTouchListener() {
+            public boolean onTouch(View v, MotionEvent event) {
+             transformTask.invokeBlur();
+             return true;
+            }
+        });
+
+
+
+
+        /*
+        imageView.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
             @Override
             public void onSwipeDown() {
                 transformTask.invokeBlur();
-                Toast.makeText(MainActivity.this, "Down", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(MainActivity.this, "Down", Toast.LENGTH_SHORT).show();
             }
             @Override
             public void onSwipeLeft() {
                 transformTask.invokeBulge();
-                Toast.makeText(MainActivity.this, "Left", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(MainActivity.this, "Left", Toast.LENGTH_SHORT).show();
             }
             @Override
             public void onSwipeUp() {
                 transformTask.invokeFishEye();
-                Toast.makeText(MainActivity.this, "Up", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(MainActivity.this, "Up", Toast.LENGTH_SHORT).show();
             }
             @Override
             public void onSwipeRight() {
                 transformTask.invokeSwirl();
-                Toast.makeText(MainActivity.this, "Right", Toast.LENGTH_SHORT).show();
+                // Toast.makeText(MainActivity.this, "Right", Toast.LENGTH_SHORT).show();
             }
         });
+        */
     }
 
     public void BlurImageClick(View view) {
         // new BlurTask().execute();
+        transformTask.invokeSwirl();
         // new BulgeTask().execute();
     }
 

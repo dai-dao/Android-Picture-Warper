@@ -131,7 +131,6 @@ public class TransformTask {
         return bitmap;
     }
 
-
     private Bitmap swirl(Bitmap bitmap) {
         //Create renderscript
         RenderScript rs = RenderScript.create(_context);
