@@ -2,5 +2,6 @@
     <string name="app_name">Picture Interactive App</string>
     <string name="button_picture_text">Take Picture</string>
     <string name="button_load_picture_text">Load Picture</string>
+    <string name="button_save">Save</string>
 
 </resources>

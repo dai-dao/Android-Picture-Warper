@@ -22,7 +22,6 @@ import com.example.pictureapp.ScriptC_image_transforms;
 
 public class TransformTask {
     private ImageView _target;
-    private Bitmap editedImage;
     private Context _context;
 
     public TransformTask(ImageView target, Context context) {
@@ -46,55 +45,59 @@ public class TransformTask {
         new SwirlTask().execute();
     }
 
-    private class BulgeTask extends AsyncTask<Void, Void, Void> {
+    private class BulgeTask extends AsyncTask<Void, Void, Bitmap> {
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Bitmap doInBackground(Void... params) {
             Bitmap bitmap =((BitmapDrawable) _target.getDrawable()).getBitmap();
-            editedImage = bulge(bitmap);
-            return null;
+            Bitmap out = bulge(bitmap);
+            return out;
         }
 
-        protected void onPostExecute(Long result) {
-            _target.setImageBitmap(editedImage);
+        protected void onPostExecute(Bitmap result) {
+            _target.setImageBitmap(result);
+            _target.postInvalidate();
         }
     }
 
-    private class BlurTask extends AsyncTask<Void, Void, Void> {
+    private class BlurTask extends AsyncTask<Void, Void, Bitmap> {
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Bitmap doInBackground(Void... params) {
             Bitmap bitmap =((BitmapDrawable) _target.getDrawable()).getBitmap();
-            editedImage = blur(bitmap, 25.0f);
-            return null;
+            Bitmap out = blur(bitmap, 25.0f);
+            return out;
         }
 
-        protected void onPostExecute(Long result) {
-            _target.setImageBitmap(editedImage);
+        protected void onPostExecute(Bitmap result) {
+            _target.setImageBitmap(result);
+            _target.postInvalidate();
         }
     }
 
-    private class FishEyeTask extends AsyncTask<Void, Void, Void> {
+    private class FishEyeTask extends AsyncTask<Void, Void, Bitmap> {
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Bitmap doInBackground(Void... params) {
             Bitmap bitmap =((BitmapDrawable) _target.getDrawable()).getBitmap();
-            editedImage = fisheye(bitmap);
-            return null;
+            Bitmap out = fisheye(bitmap);
+            return out;
         }
 
-        protected void onPostExecute(Long result) {
-            _target.setImageBitmap(editedImage);
+        protected void onPostExecute(Bitmap result) {
+            _target.setImageBitmap(result);
+            _target.postInvalidate();
         }
     }
 
-    private class SwirlTask extends AsyncTask<Void, Void, Void> {
+    private class SwirlTask extends AsyncTask<Void, Void, Bitmap> {
         @Override
-        protected Void doInBackground(Void... params) {
+        protected Bitmap doInBackground(Void... params) {
             Bitmap bitmap =((BitmapDrawable) _target.getDrawable()).getBitmap();
-            editedImage = swirl(bitmap);
-            return null;
+            Bitmap out = swirl(bitmap);
+            return out;
         }
 
-        protected void onPostExecute(Long result) {
-            _target.setImageBitmap(editedImage);
+        protected void onPostExecute(Bitmap result) {
+            _target.setImageBitmap(result);
+            _target.postInvalidate();
         }
     }
 
