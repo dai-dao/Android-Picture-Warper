@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE }, 0);
         }
 
-        imageView.setOnTouchListener(new OnSwipeTouchListener(MainActivity.this) {
+        imageView.setOnTouchListener(new SimpleSwipeListener(MainActivity.this) {
             @Override
             public void onSwipeDown() {
                 transformTask.invokeBlur();

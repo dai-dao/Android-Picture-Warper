@@ -8,18 +8,12 @@ import android.view.View;
 /**
  * Created by ddao on 1/29/18.
  * Reference: https://guides.codepath.com/android/gestures-and-touch-events
- *
- *
- *
- *
  * */
 
-
-public class OnSwipeTouchListener implements View.OnTouchListener {
-
+public class SimpleSwipeListener implements View.OnTouchListener {
     private GestureDetector gestureDetector;
 
-    public OnSwipeTouchListener(Context c) {
+    public SimpleSwipeListener(Context c) {
         gestureDetector = new GestureDetector(c, new GestureListener());
     }
 
@@ -41,8 +35,11 @@ public class OnSwipeTouchListener implements View.OnTouchListener {
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             boolean result = false;
             try {
+                // Get the difference in the motions X and Y coordinates to determine
+                // Swipe direction
                 float diffY = e2.getY() - e1.getY();
                 float diffX = e2.getX() - e1.getX();
+
                 if (Math.abs(diffX) > Math.abs(diffY)) {
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                         if (diffX > 0) {

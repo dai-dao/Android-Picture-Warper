@@ -1,119 +1,112 @@
 #pragma version(1)
 #pragma rs_fp_relaxed
 #pragma rs java_package_name(com.example.pictureapp)
-
-// Reference: https://github.com/Jtfinlay/PhotoWarp/blob/master/app/src/main/rs/transform.rs
-#define C_PI 3.141592653589793238462643383279502884197169399375
 #include "rs_core.rsh"
 
+
+#define MATH_PI 3.141592653589793238462643383279502884197169399375
+
+// These are inputs to be passed in from Java code
 const uchar4* input;
 int width;
 int height;
 
-static uchar4 getPixelAt(int, int);
+// Method to avoid edge case if calculated coordinates are
+// out of bounds
+static uchar4 clampPixel(int x, int y){
+    if (y >= height) y = height-1;
+    if (y < 0) y = 0;
+    if (x >= width) x = width-1;
+    if (x < 0) x = 0;
+    // Because the image is represented as a flattened array
+    return input[y*width + x];
+}
 
+// Reference: https://stackoverflow.com/questions/5055625/image-warping-bulge-effect-algorithm
 uchar4 __attribute__((kernel)) bulge(uchar4 in, uint32_t x, uint32_t y)
 {
-	float r, a, rn, cX, cY;
+    float x0, y0;
+    float x_norm, y_norm;
+    float r, a, rn;
+    int srcX, srcY;
 
+    x0 = 0.5f * (width - 1);
+    y0 = 0.5f * (height - 1);
 
-	float xdist, ydist;
-	float srcX, srcY;
+    // Here we want image coordinates to be between [0, 1]
+    x_norm = (float) x / (float) width;
+    y_norm = (float) y / (float) height;
 
-	cX = (float) width / 2.0f;
-   	cY = (float) height / 2.0f;
+    r = sqrt(pow(x_norm - 0.5f, 2) + pow(y_norm - 0.5f, 2));
+    a = atan2(x_norm - 0.5f, y_norm - 0.5f);
+    rn = pow(r, 2.5f) / 0.5f;
 
-	xdist = ((float) x / (float)width);
-	ydist = ((float) y / (float)height);
+    srcX = rn * cos(a) + 0.5f;
+    srcY = rn * sin(a) + 0.5f;
 
-	r = sqrt(pow((xdist-0.5f), 2) + pow((ydist-0.5f), 2));
-	a = atan2((xdist-0.5f), (ydist-0.5f));
-	rn = pow(r,2.0f)/0.5f;
+    // Normalize coordinates back to [0, 255]
+    srcX = (int) (srcX * (float) width);
+    srcY = (int) (srcY * (float) height);
 
-	srcX = rn * sin(a) + 0.5f;
-	srcY = rn * cos(a) + 0.5f;
-	srcX *= (float) width;
-	srcY *= (float) height;
-
-	return getPixelAt((int)srcX, (int)srcY);
+    return clampPixel(srcX, srcY);
 }
 
-
-
+// Java Reference: https://introcs.cs.princeton.edu/java/31datatype/Swirl.java.html
 uchar4 __attribute__((kernel)) swirl(uchar4 in, uint32_t x, uint32_t y)
 {
-	int srcX, srcY;
-	float relX, relY, cX, cY;
-	float angle, new_angle, radius;
+	float x0, y0, dx, dy;
+    float radius, angle;
+    int srcX, srcY;
 
-	cX = (float) width / 2.0f;
-	cY = (float) height / 2.0f;
-	relY = cY-y;
+	x0 = 0.5f * (width - 1);
+	y0 = 0.5f * (height - 1);
 
-	relX = x - cX;
-	if (relX != 0)
-	{
-		angle = atan( fabs(relY) / fabs(relX));
-		if (relX > 0 && relY < 0) angle = 2.0f * C_PI - angle;
-		else if (relX <= 0 && relY >= 0) angle = C_PI - angle;
-		else if (relX <=0 && relY < 0) angle += C_PI;
-	}
-	else
-	{
-		if (relY >= 0) angle = 0.5f * C_PI;
-		else angle = 1.5f * C_PI;
-	}
+    dy = y0 - y;
+    dx = x - x0;
 
-    radius = sqrt( relX*relX + relY*relY);
-	new_angle = angle + (.001f * radius);
+    radius = sqrt(dx*dx + dy*dy);
+    angle = MATH_PI / 256.0f * radius;
 
-	srcX = (int)(radius * cos(new_angle)+0.5f);
-	srcY = (int)(radius * sin(new_angle)+0.5f);
-	srcX += cX;
-	srcY += cY;
+    srcX = (int) (dx * cos(angle) - dy * sin(angle));
+    srcY = (int) (dx * sin(angle) + dy * cos(angle));
+
+    srcX += x0;
+	srcY += y0;
 	srcY = height - srcY;
 
-	return getPixelAt(srcX, srcY);
+    return clampPixel(srcX, srcY);
 }
 
-
+// Reference: http://www.tannerhelland.com/4743/simple-algorithm-correcting-lens-distortion/
 uchar4 __attribute__((kernel)) fisheye(uchar4 in, uint32_t x, uint32_t y)
 {
-	float ny, nx, r, nr;
-	float theta, nxn, nyn;
-	int x2, y2;
-	ny = ((2.0f * y) / height) - 1.0f;
-	nx = ((2.0f * x) / width) - 1.0f;
-	r = sqrt(nx*nx + ny*ny);
+    float x0, y0, dx, dy;
+    float dist, r, theta, correction_radius;
+    int srcX, srcY;
 
-	if (0.0f <= r && r <= 1.0)
-	{
-		nr = (r + (1.0f - nr)) / 2.0f;
+    float strength = 0.00001;
+    float zoom = 1.1;
 
-    	if (nr <= 1.0)
-		{
-          	theta = atan2(ny, nx);
-           	nxn = nr * cos(theta);
-           	nyn = nr * sin(theta);
+    correction_radius = sqrt((float) (width*width + height*height));
+    correction_radius /= strength;
+    x0 = 0.5f * (width - 1);
+    y0 = 0.5f * (height - 1);
 
-           	x2 = (int) (((nxn+1)*width) / 2.0f);
-    		y2 = (int) (((nyn+1)*height) / 2.0f);
+    dy = y0 - y;
+    dx = x - x0;
 
-	     	return getPixelAt(x2, y2);
-		}
-	}
-	return 0;
-}
+    dist = sqrt(dx*dx + dy*dy);
+    r = dist / correction_radius;
 
+    if (r == 0.0f) {
+        theta = 1.0f;
+    } else {
+        theta = atan(r) / r;
+    }
 
-
-//a convenience method to clamp getting pixels into the image
-static uchar4 getPixelAt(int x, int y) {
-	if(y>=height) y = height-1;
-	if(y<0) y = 0;
-	if(x>=width) x = width-1;
-	if(x<0) x = 0;
-	return input[y*width + x];
+    srcX = (int) (x0 + theta * dx * zoom);
+    srcY = (int) (y0 + theta * dy * zoom);
+    return clampPixel(srcX, srcY);
 }
 
 
