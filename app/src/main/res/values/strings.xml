@@ -3,5 +3,6 @@
     <string name="button_picture_text">Take Picture</string>
     <string name="button_load_picture_text">Load Picture</string>
     <string name="button_save">Save</string>
+    <string name="button_undo">Undo</string>
 
 </resources>

@@ -41,6 +41,7 @@ import android.widget.Toast;
 
 import com.example.pictureapp.ScriptC_image_transforms;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -54,6 +55,9 @@ public class MainActivity extends AppCompatActivity {
     private int PICK_IMAGE_REQUEST = 1;
     private TransformTask transformTask;
     private Button takePictureButton;
+    private Button saveButton;
+    private Button undoButton;
+    private ImageManager imageManager;
     private ImageView imageView;
     private Bitmap editedImage;
     private Uri file;
@@ -67,9 +71,15 @@ public class MainActivity extends AppCompatActivity {
         StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
         StrictMode.setVmPolicy(builder.build());
 
+        saveButton = (Button) findViewById(R.id.save_button);
+        saveButton.setEnabled(false);
+        undoButton = (Button)findViewById(R.id.undo_button);
+        undoButton.setEnabled(false);
         takePictureButton = (Button) findViewById(R.id.take_picture_button);
         imageView = (ImageView) findViewById(R.id.imageView);
-        transformTask = new TransformTask(imageView, MainActivity.this);
+        transformTask = new TransformTask(imageView, saveButton,
+                                            undoButton, MainActivity.this);
+        imageManager = new ImageManager(this);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             takePictureButton.setEnabled(false);
@@ -79,30 +89,63 @@ public class MainActivity extends AppCompatActivity {
         imageView.setOnTouchListener(new SimpleSwipeListener(MainActivity.this) {
             @Override
             public void onSwipeDown() {
-                transformTask.invokeBlur();
-                Toast.makeText(MainActivity.this, "Down", Toast.LENGTH_SHORT).show();
+                if (imageView.getDrawable() == null) {
+                    Toast.makeText(MainActivity.this,
+                                "Please take a new image or load an existing image!",
+                                Toast.LENGTH_SHORT).show();
+                } else {
+                    transformTask.invokeBlur();
+                    undoButton.setEnabled(true);
+                    Toast.makeText(MainActivity.this, "Down",
+                            Toast.LENGTH_SHORT).show();
+                }
             }
             @Override
             public void onSwipeLeft() {
-                transformTask.invokeBulge();
-                Toast.makeText(MainActivity.this, "Left", Toast.LENGTH_SHORT).show();
+                if (imageView.getDrawable() == null) {
+                    Toast.makeText(MainActivity.this,
+                            "Please take a new image or load an existing image!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    transformTask.invokeBulge();
+                    undoButton.setEnabled(true);
+                    Toast.makeText(MainActivity.this, "Left", Toast.LENGTH_SHORT).show();
+                }
             }
             @Override
             public void onSwipeUp() {
-                transformTask.invokeFishEye();
-                Toast.makeText(MainActivity.this, "Up", Toast.LENGTH_SHORT).show();
+                if (imageView.getDrawable() == null) {
+                    Toast.makeText(MainActivity.this,
+                            "Please take a new image or load an existing image!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    transformTask.invokeFishEye();
+                    undoButton.setEnabled(true);
+                    Toast.makeText(MainActivity.this, "Up", Toast.LENGTH_SHORT).show();
+                }
             }
             @Override
             public void onSwipeRight() {
-                transformTask.invokeSwirl();
-                Toast.makeText(MainActivity.this, "Right", Toast.LENGTH_SHORT).show();
+                if (imageView.getDrawable() == null) {
+                    Toast.makeText(MainActivity.this,
+                            "Please take a new image or load an existing image!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    transformTask.invokeSwirl();
+                    undoButton.setEnabled(true);
+                    Toast.makeText(MainActivity.this, "Right", Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
 
     public void SaveImageClick(View view) {
         // Make current bitmap public to Gallery
-
+        transformTask.saveCurrentImage();
+        // Disable Save button after save
+        saveButton.setEnabled(false);
+        // Show message
+        Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -115,9 +158,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void undo(View view) {
+        transformTask.undo();
+    }
+
     public void takePicture(View view) {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        file = Uri.fromFile(getOutputMediaFile());
+        file = Uri.fromFile(imageManager.getOutputMediaFile());
         intent.putExtra(MediaStore.EXTRA_OUTPUT, file);
         startActivityForResult(intent, 100);
     }
@@ -128,9 +175,12 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK) {
                 // Set image to the view
                 imageView.setImageURI(file);
-
                 // Add to Gallery
-                addPhotoToGallery();
+                imageManager.addPhotoToGallery(file);
+                // Disable Save button
+                saveButton.setEnabled(false);
+                // Reset image transform
+                transformTask.reset(file);
             }
         }
 
@@ -139,29 +189,12 @@ public class MainActivity extends AppCompatActivity {
             try {
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), file);
                 imageView.setImageBitmap(bitmap);
+                saveButton.setEnabled(false);
+                transformTask.reset(file);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-    private static File getOutputMediaFile(){
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "PictureInteractive");
-        if (!mediaStorageDir.exists()){
-            if (!mediaStorageDir.mkdirs()){
-                return null;
-            }
-        }
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        return new File(mediaStorageDir.getPath() + File.separator +
-                "IMG_"+ timeStamp + ".jpg");
-    }
-
-    private void addPhotoToGallery() {
-        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        mediaScanIntent.setData(file); //your file uri
-        this.sendBroadcast(mediaScanIntent);
     }
 
     public void loadPicture(View view) {

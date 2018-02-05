@@ -4,17 +4,23 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BlurMaskFilter;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.provider.MediaStore;
 import android.support.v8.renderscript.Allocation;
 import android.support.v8.renderscript.Element;
 import android.support.v8.renderscript.RSInvalidStateException;
 import android.support.v8.renderscript.RenderScript;
 import android.support.v8.renderscript.ScriptIntrinsicBlur;
 import android.support.v8.renderscript.Type;
+import android.util.Log;
+import android.widget.Button;
 import android.widget.ImageView;
 
 import com.example.pictureapp.MainActivity;
 import com.example.pictureapp.ScriptC_image_transforms;
+
+import java.io.File;
 
 /**
  * Created by ddao on 1/26/18.
@@ -23,27 +29,78 @@ import com.example.pictureapp.ScriptC_image_transforms;
 public class TransformTask {
     private ImageView _target;
     private Context _context;
+    private Button _saveButton;
+    private Button _undoButton;
+    private ImageManager imageManager;
+    private Uri transformed_images[] = new Uri[100];
+    private int currentIndex = 0;
 
-    public TransformTask(ImageView target, Context context) {
+    private static final String TAG = "TransFormLog";
+
+    public TransformTask(ImageView target,
+                         Button saveButton,
+                         Button undoButton,
+                         Context context) {
         _target = target;
         _context = context;
+        _undoButton = undoButton;
+        _saveButton = saveButton;
+        imageManager = new ImageManager(_context);
+    }
+
+    private void delete(Uri uri) {
+        File file = new File(uri.toString());
+        file.delete();
+    }
+
+    public void undo() {
+        try {
+            // Delete the last one
+            delete(transformed_images[currentIndex]);
+            currentIndex = currentIndex - 1;
+            Bitmap bitmap = MediaStore.Images.Media.
+                                getBitmap(_context.getContentResolver(),
+                                        transformed_images[currentIndex]);
+            _target.setImageBitmap(bitmap);
+
+            if (currentIndex == 0) { _undoButton.setEnabled(false); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void reset(Uri uri) {
+        if (currentIndex > 0) {
+            for (int i = 0; i <= currentIndex; i++) {
+                delete(transformed_images[i]);
+            }
+        }
+        currentIndex = 0;
+        transformed_images[currentIndex] = uri;
+    }
+
+    public void saveCurrentImage() {
+        if (currentIndex > 0) {
+            imageManager.addPhotoToGallery(transformed_images[currentIndex]);
+        }
+    }
+
+    private void postBackground(Bitmap result) {
+        _target.setImageBitmap(result);
+        _saveButton.setEnabled(true);
+        Uri uri = imageManager.saveImage(result, false);
+        currentIndex++;
+        transformed_images[currentIndex] = uri;
     }
 
     public void invokeBlur() {
         new BlurTask().execute();
     }
-
     public void invokeBulge() {
         new BulgeTask().execute();
     }
-
-    public void invokeFishEye() {
-        new FishEyeTask().execute();
-    }
-
-    public void invokeSwirl() {
-        new SwirlTask().execute();
-    }
+    public void invokeFishEye() { new FishEyeTask().execute(); }
+    public void invokeSwirl() { new SwirlTask().execute(); }
 
     private class BulgeTask extends AsyncTask<Void, Void, Bitmap> {
         @Override
@@ -54,8 +111,7 @@ public class TransformTask {
         }
 
         protected void onPostExecute(Bitmap result) {
-            _target.setImageBitmap(result);
-            _target.postInvalidate();
+            postBackground(result);
         }
     }
 
@@ -68,8 +124,7 @@ public class TransformTask {
         }
 
         protected void onPostExecute(Bitmap result) {
-            _target.setImageBitmap(result);
-            _target.postInvalidate();
+            postBackground(result);
         }
     }
 
@@ -82,8 +137,7 @@ public class TransformTask {
         }
 
         protected void onPostExecute(Bitmap result) {
-            _target.setImageBitmap(result);
-            _target.postInvalidate();
+            postBackground(result);
         }
     }
 
@@ -96,8 +150,7 @@ public class TransformTask {
         }
 
         protected void onPostExecute(Bitmap result) {
-            _target.setImageBitmap(result);
-            _target.postInvalidate();
+            postBackground(result);
         }
     }
 
